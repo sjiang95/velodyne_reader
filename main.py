@@ -100,12 +100,12 @@ class ld:
                  lidarip:str='192.168.1.201', 
                  dataPort:int=2368, 
                  rpm:int=600,
-                 localhost='',
+                 localhost:str='',
                  as_pcl_structs:bool=False) -> None:
         self.lidarip=lidarip
+        assert dataPort in range(65535),f"Arg 'dataPort' has to be in [0,65535], but got {dataPort}."
         self.dataPort=dataPort
         self.as_pcl_structs=as_pcl_structs
-        assert isinstance(model,str), f"Arg 'model' has to be str but got {type(model)}."
         self.model=model
         self.rpm=rpm
         self.localhost=localhost
