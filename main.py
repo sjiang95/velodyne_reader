@@ -172,6 +172,10 @@ class ld:
         
 def main(args):
     myld=ld(args.model,args.ip_lidar,args.dataport,args.rpm)
+    utcDate=datetime.now(timezone.utc).strftime('%Y%m%d')
+    outdir=os.path.join(args.outdir,utcDate)
+    if not os.path.exists(outdir): os.makedirs(outdir)
+    print(f"Outputs will be written to {outdir}.")
     try:
         myld.launch()
         for Data in myld.read_live_data():
