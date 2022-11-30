@@ -18,7 +18,7 @@ import argparse
 import velodyne_decoder as vd
 from velodyne_decoder_pylib import *
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from tzlocal import get_localzone
 
 LOOKUP_COS = np.empty(36000)
@@ -125,7 +125,7 @@ class ld:
         rcode = self.sensor.getinfo(self.sensor.RESPONSE_CODE) 
         success = rcode in range(200, 207) 
         print(f"{url} {pf}: {rcode} ({'OK' if success else 'ERROR'})") 
-        return success 
+        return success
     
     def launch(self):
         print(f"Launch the devide {self.model} at {self.lidarip}:")
@@ -176,13 +176,14 @@ def main(args):
         myld.launch()
         for Data in myld.read_live_data():
             if Data != None:
+                utc_stamp=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S.%f')
                 stamp, points = Data
-                print(stamp, points.shape)
-                # print(f"points:{points}")
+                print(utc_stamp, points.shape)
+                print(f"points:{points}")
                 break
-        myld.stop()
     except KeyboardInterrupt as e:
         print(e)
+    finally:
         myld.stop()
         
 if __name__=="__main__":
