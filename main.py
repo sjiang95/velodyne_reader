@@ -105,6 +105,7 @@ class ld:
                  lidarip:str='192.168.1.201', 
                  dataPort:int=2368, 
                  rpm:int=600,
+                 retrunMode:str='dual',
                  localhost:str='',
                  as_pcl_structs:bool=False) -> None:
         # velodyne lidar
@@ -114,6 +115,8 @@ class ld:
         self.as_pcl_structs=as_pcl_structs
         self.model=model
         self.rpm=rpm
+        assert retrunMode in ['strongest','last','dual'], f"returnMode must be one of ['strongest','last','dual'], but got {retrunMode}"
+        self.retrunMode=retrunMode.capitalize()
         self.config=vd.Config(model=self.model, rpm=self.rpm)
         self.decoder = vd.StreamDecoder(self.config)
         
@@ -141,7 +144,10 @@ class ld:
         rc = self.sensor_do(self.Base_URL+'reset', urlencode({'data':'reset_system'}), self.buffer) 
         if rc: 
             time.sleep(5) 
-            rc = self.sensor_do(self.Base_URL+'setting', urlencode({'rpm':args.rpm}), self.buffer) 
+            rc = self.sensor_do(self.Base_URL+'setting', urlencode({'returns':self.retrunMode}), self.buffer)
+        if rc: 
+            time.sleep(5) 
+            rc = self.sensor_do(self.Base_URL+'setting', urlencode({'rpm':self.rpm}), self.buffer) 
         if rc: 
             time.sleep(10) 
             rc = self.sensor_do(self.Base_URL+'setting', urlencode({'laser':'on'}), self.buffer) 
@@ -201,7 +207,7 @@ class ld:
             return False
         
 def main(args):
-    myld=ld(args.model,args.ip_lidar,args.dataport,args.rpm)
+    myld=ld(args.model,args.ip_lidar,args.dataport,args.rpm,args.returnmode)
     utcDate=datetime.now(timezone.utc).strftime('%Y%m%d')
     outdir=os.path.join(args.outdir,utcDate)
     if not os.path.exists(outdir): os.makedirs(outdir)
@@ -238,6 +244,7 @@ if __name__=="__main__":
     parser.add_argument('--ip-local', default='', type=str,metavar="localhost", help="IP addr of localhost, not the velodyne lidar. Default:''(listen to all).")
     parser.add_argument('--dataport', default=2368, type=int,metavar="PORT", help="Data port to be listened for UDP packages. Default: 2368.")
     parser.add_argument('--rpm', default=600, type=int,metavar="RPM", help="RPM of the velodyne lidar to be set.")
+    parser.add_argument('--returnmode',default='dual',choices=['strongest','last','dual'],type=str,metavar="ReturnMode", help="pcap: read data and write to pcap file; live: read data in stream mode.")
     parser.add_argument('--mode',default='pcap',choices=['pcap','live'],type=str,metavar="MODE", help="pcap: read data and write to pcap file; live: read data in stream mode.")
     parser.add_argument('--outdir',default='out',type=str,metavar="DIR", help="output path.")
     args=parser.parse_args()
