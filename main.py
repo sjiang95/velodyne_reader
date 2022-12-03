@@ -190,7 +190,12 @@ class ld:
         recv_stamp = time.time() if timestamp==None else timestamp
         decodedData=self.decoder.decode(recv_stamp, data, self.as_pcl_structs)
         if decodedData is not None:
-            packet = Ether(src='ff:ff:ff:ff:ff:ff',dst='ff:ff:ff:ff:ff:ff') / IP(src='192.168.0.200',dst='255.255.255.255') / UDP(sport=address[1],dport=address[1])/data#
+            packet = (
+                Ether(src='ff:ff:ff:ff:ff:ff',dst='ff:ff:ff:ff:ff:ff') # dst mac addr is broadcast with no doubt, but the src mac addr is also broadcast from the pcap file recorded by veloview.
+                / IP(src='192.168.0.200',dst='255.255.255.255') # src ip should be the ip of the lidar but is 192.168.0.200 in the pcap file recorded by veloview.
+                / UDP(sport=address[1],dport=address[1],chksum=0) # checksum is set to 0 (ignore) according to the pcap file recorded by veloview.
+                / data # use operator / to append the recieved data at last
+                )
             with open(filename,'wb') as fw:
                 print(f"Write to file {filename}")
                 # print(f"packet={packet}")
