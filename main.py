@@ -14,12 +14,17 @@ import socket
 import numpy as np
 import cv2
 import argparse
-# https://github.com/valgur/velodyne_decoder
-import velodyne_decoder as vd
-from velodyne_decoder_pylib import *
 import time
 from datetime import datetime, timedelta, timezone
 from tzlocal import get_localzone
+import os
+import dpkt
+from scapy.all import wrpcap, Ether, IP, UDP
+
+# velodyne
+# https://github.com/valgur/velodyne_decoder
+import velodyne_decoder as vd
+from velodyne_decoder_pylib import *
 
 LOOKUP_COS = np.empty(36000)
 LOOKUP_SIN = np.empty(36000)
@@ -102,20 +107,24 @@ class ld:
                  rpm:int=600,
                  localhost:str='',
                  as_pcl_structs:bool=False) -> None:
+        # velodyne lidar
         self.lidarip=lidarip
         assert dataPort in range(65535),f"Arg 'dataPort' has to be in [0,65535], but got {dataPort}."
         self.dataPort=dataPort
         self.as_pcl_structs=as_pcl_structs
         self.model=model
         self.rpm=rpm
-        self.localhost=localhost
         self.config=vd.Config(model=self.model, rpm=self.rpm)
+        self.decoder = vd.StreamDecoder(self.config)
         
         # communication
+        self.localhost=localhost
         self.sensor = pycurl.Curl()
         self.Base_URL = 'http://'+self.lidarip+'/cgi/'
         print(f"Base_URL:{self.Base_URL}")
         self.buffer = BytesIO()
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.socket.bind((self.localhost, self.dataPort))
 
     def sensor_do(self, url, pf, buf):
         self.sensor.setopt(self.sensor.URL, url) 
@@ -162,13 +171,34 @@ class ld:
         """
         https://github.com/valgur/velodyne_decoder/issues/4#issuecomment-1248660033
         """
-        decoder = vd.StreamDecoder(self.config)
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.bind((self.localhost, self.dataPort))
         while True:
-            data, address = s.recvfrom(vd.PACKET_SIZE * 2)
+            data, address = self.socket.recvfrom(vd.PACKET_SIZE * 2)
             recv_stamp = time.time()
-            yield decoder.decode(recv_stamp, data, self.as_pcl_structs)
+            yield self.decoder.decode(recv_stamp, data, self.as_pcl_structs)
+            
+    def stream2pcap(self, filename:str=None, timestamp:float=None):
+        assert filename is not None,f"Must specify filename."
+        data, address = self.socket.recvfrom(vd.PACKET_SIZE * 2)
+        # print(f"recvfrom {address}")
+        # print(f"data={data}")
+        recv_stamp = time.time() if timestamp==None else timestamp
+        decodedData=self.decoder.decode(recv_stamp, data, self.as_pcl_structs)
+        if decodedData is not None:
+            packet = Ether(src='ff:ff:ff:ff:ff:ff',dst='ff:ff:ff:ff:ff:ff') / IP(src='192.168.0.200',dst='255.255.255.255') / UDP(sport=address[1],dport=address[1])/data#
+            with open(filename,'wb') as fw:
+                print(f"Write to file {filename}")
+                # print(f"packet={packet}")
+                wrpcap(filename, [packet])
+                # writer = dpkt.pcap.Writer(fw)
+                # writer.writepkt(pkt=head+data,ts=timestamp)
+            fw.close()
+            print(f"[0]decoded data: {decodedData}")
+            stamp, points = decodedData
+            print(f"Num points: {len(points)}")
+            return True
+        else:
+            print(f"[1]decoded data: {decodedData}")
+            return False
         
 def main(args):
     myld=ld(args.model,args.ip_lidar,args.dataport,args.rpm)
@@ -178,13 +208,24 @@ def main(args):
     print(f"Outputs will be written to {outdir}.")
     try:
         myld.launch()
-        for Data in myld.read_live_data():
-            if Data != None:
-                utc_stamp=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S.%f')
-                stamp, points = Data
-                print(utc_stamp, points.shape)
-                print(f"points:{points}")
-                break
+        if args.mode=='live':
+            # live mode
+            for Data in myld.read_live_data():
+                if Data != None:
+                    utc_time=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S.%f')
+                    stamp, points = Data
+                    print(utc_time, points.shape)
+                    print(f"points:{points}")
+                    break
+        elif args.mode=='pcap':
+            # write mode
+            while True:
+                utc_time=datetime.now(timezone.utc)
+                pcapFilename=os.path.join(outdir,utc_time.strftime('%Y%m%dT%H%M%S.%f')+'.pcap')
+                if myld.stream2pcap(pcapFilename,utc_time.timestamp()):
+                    break
+                else:
+                    continue
     except KeyboardInterrupt as e:
         print(e)
     finally:
@@ -197,5 +238,7 @@ if __name__=="__main__":
     parser.add_argument('--ip-local', default='', type=str,metavar="localhost", help="IP addr of localhost, not the velodyne lidar. Default:''(listen to all).")
     parser.add_argument('--dataport', default=2368, type=int,metavar="PORT", help="Data port to be listened for UDP packages. Default: 2368.")
     parser.add_argument('--rpm', default=600, type=int,metavar="RPM", help="RPM of the velodyne lidar to be set.")
+    parser.add_argument('--mode',default='pcap',choices=['pcap','live'],type=str,metavar="MODE", help="pcap: read data and write to pcap file; live: read data in stream mode.")
+    parser.add_argument('--outdir',default='out',type=str,metavar="DIR", help="output path.")
     args=parser.parse_args()
     main(args)
