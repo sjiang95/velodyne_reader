@@ -23,6 +23,17 @@ import threading
 import dpkt
 from scapy.all import wrpcap, Ether, IP, UDP
 
+import logging
+logger = logging.getLogger()
+logger.setLevel('DEBUG')
+BASIC_FORMAT = "%(asctime)s:%(levelname)s:%(message)s"
+DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
+formatter = logging.Formatter(BASIC_FORMAT, DATE_FORMAT)
+terminalHandler = logging.StreamHandler() # 输出到控制台的handler
+terminalHandler.setFormatter(formatter)
+terminalHandler.setLevel('INFO')  # 也可以不设置，不设置就默认用logger的level
+logger.addHandler(terminalHandler)
+
 # velodyne
 # https://github.com/valgur/velodyne_decoder
 import velodyne_decoder as vd
@@ -225,18 +236,19 @@ class ld:
             if self.q.empty() and not baseThread.is_alive(): # exit thread
                 if not len(pktList)==0:
                     with open(filename,'wb') as fw:
-                        print(f"Write to file {filename}")
+                        logger.info(f"Write to file {filename}")
                         wrpcap(filename, pktList)
                     fw.close()
                 else:
-                    print(f"pktList is empty.")
+                    logger.warning(f"pktList is empty.")
                 break
             elif self.q.empty() and baseThread.is_alive(): # waiting for data
                 # print(f"q is empty, continue.")
                 continue
             else: # processing data
                 oneTimestamp,oneData,oneAddress=self.q.get()
-                # print(f"processing data of timestamp {oneTimestamp}")
+                if logger is not None: logger.info(f"processing data of timestamp {oneTimestamp}, {self.q.qsize()} samples left in queue.")
+                # print(f"processing data of timestamp {oneTimestamp}, {self.q.qsize()} samples left in queue.") # if this line is comment out, 
                 packet = (
                     etherIPHead
                     / UDP(sport=oneAddress[1],dport=oneAddress[1],chksum=0) # checksum is set to 0 (ignore) according to the pcap file recorded by veloview.
@@ -267,13 +279,19 @@ def main(args):
             utc_time=datetime.now(timezone.utc)
             filenamePrefix=args.model+'_'+str(args.rpm)+'rpm'+args.returnmode.capitalize()+'_'
             pcapFilename=os.path.join(outdir,filenamePrefix+utc_time.strftime('%Y%m%dT%H%M%S.%f')+'.pcap')
+    
+            # log
+            fileHandler = logging.FileHandler(os.path.join(outdir,filenamePrefix+utc_time.strftime('%Y%m%dT%H%M%S.%f')+'.log')) # 输出到文件的handler
+            fileHandler.setFormatter(formatter)
+            logger.addHandler(fileHandler)
+    
             threadList=[]
             threadRecv=threading.Thread(target=myld._recvfrom,name='_recvfrom')
             threadList.append(threadRecv)
-            threadQ2pcap=threading.Thread(target=myld.q2pcap,name='q2pcap',args=(threadRecv,pcapFilename))
+            threadQ2pcap=threading.Thread(target=myld.q2pcap,name='q2pcap',args=(threadRecv,pcapFilename,logger))
             threadList.append(threadQ2pcap)
             for oneThread in threadList:
-                print(f"Starting thread:\t{oneThread.name}.")
+                logger.info(f"Starting thread:\t{oneThread.name}.")
                 oneThread.start()
             
             time.sleep(30)
@@ -282,7 +300,7 @@ def main(args):
             
             for oneThread in threadList:
                 oneThread.join()
-                print(f"Thread {oneThread.name} stopped.")
+                logger.info(f"Thread {oneThread.name} stopped.")
                 
     except KeyboardInterrupt as e:
         print(e)
