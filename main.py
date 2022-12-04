@@ -228,9 +228,14 @@ def main(args):
             logger.info(f"Starting thread:\t{oneThread.name}.")
             oneThread.start()
             
-        time.sleep(30)
-        global exitFlag
-        exitFlag=True
+        while True:
+            try:
+                time.sleep(1)
+            except KeyboardInterrupt:
+                logger.info("User interruption.")
+                global exitFlag
+                exitFlag=True
+                break
             
         for oneThread in threadList:
             oneThread.join()
