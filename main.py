@@ -166,7 +166,7 @@ class ld:
                 if not len(pktList)==0:
                     with open(filename,'wb') as fw:
                         logger.info(f"Write to file {filename}")
-                        wrpcap(filename, pktList)
+                        wrpcap(filename, pktList[1:]) # The time difference between first (idx=0) and second (idx=1) packet is 10s of unkonwn reason. Solution is to discard the first (idx=0) packet.
                     fw.close()
                 else:
                     logger.warning(f"pktList is empty.")
