@@ -212,7 +212,6 @@ def main(args):
         # write mode
         utc_time=datetime.now(timezone.utc)
         filenamePrefix=args.model+'_'+str(args.rpm)+'rpm'+args.returnmode.capitalize()+'_'
-        pcapFilename=os.path.join(outdir,filenamePrefix+utc_time.strftime('%Y%m%dT%H%M%S.%f')+'.pcap')
     
         # log
         fileHandler = logging.FileHandler(os.path.join(outdir,filenamePrefix+utc_time.strftime('%Y%m%dT%H%M%S.%f')+'.log')) # 输出到文件的handler
@@ -222,6 +221,7 @@ def main(args):
         threadList=[]
         threadRecv=threading.Thread(target=myld._recvfrom,name='_recvfrom')
         threadList.append(threadRecv)
+        pcapFilename=os.path.join(outdir,filenamePrefix+utc_time.strftime('%Y%m%dT%H%M%S.%f')+'.pcap')
         threadQ2pcap=threading.Thread(target=myld.q2pcap,name='q2pcap',args=(threadRecv,pcapFilename,logger))
         threadList.append(threadQ2pcap)
         for oneThread in threadList:
