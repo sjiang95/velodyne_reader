@@ -18,6 +18,8 @@ import time
 from datetime import datetime, timedelta, timezone
 from tzlocal import get_localzone
 import os
+import queue
+import threading
 import dpkt
 from scapy.all import wrpcap, Ether, IP, UDP
 
@@ -97,6 +99,7 @@ class Visualizer:
             self._map[y_px, x_px+1] = (0,0,0)
             self._map[y_px+1, x_px+1] = (0,0,0)
 
+exitFlag=False
 class ld:
     """
     Class for velodyne lidars.
@@ -128,6 +131,9 @@ class ld:
         self.buffer = BytesIO()
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.bind((self.localhost, self.dataPort))
+        
+        # data container
+        self.q=queue.Queue()
 
     def sensor_do(self, url, pf, buf):
         self.sensor.setopt(self.sensor.URL, url) 
@@ -182,8 +188,7 @@ class ld:
             recv_stamp = time.time()
             yield self.decoder.decode(recv_stamp, data, self.as_pcl_structs)
             
-    def stream2pcap(self, filename:str=None, timestamp:float=None):
-        assert filename is not None,f"Must specify filename."
+    def stream2pcap(self, timestamp:float=None):
         data, address = self.socket.recvfrom(vd.PACKET_SIZE * 2)
         # print(f"recvfrom {address}")
         # print(f"data={data}")
@@ -191,25 +196,54 @@ class ld:
         decodedData=self.decoder.decode(recv_stamp, data, self.as_pcl_structs)
         if decodedData is not None:
             packet = (
-                Ether(src='ff:ff:ff:ff:ff:ff',dst='ff:ff:ff:ff:ff:ff') # dst mac addr is broadcast with no doubt, but the src mac addr is also broadcast from the pcap file recorded by veloview.
-                / IP(src='192.168.0.200',dst='255.255.255.255') # src ip should be the ip of the lidar but is 192.168.0.200 in the pcap file recorded by veloview.
+                Ether(src='ff:ff:ff:ff:ff:ff',dst='ff:ff:ff:ff:ff:ff') # dst mac addr is broadcast with no doubt, but the src mac addr is also broadcast from the pcap file recorded by veloview. This would not affect the function of captured pcap file.
+                / IP(src='192.168.0.200',dst='255.255.255.255') # src ip should be the ip of the lidar but is 192.168.0.200 in the pcap file recorded by veloview. This would not affect the function of captured pcap file.
                 / UDP(sport=address[1],dport=address[1],chksum=0) # checksum is set to 0 (ignore) according to the pcap file recorded by veloview.
                 / data # use operator / to append the recieved data at last
                 )
-            with open(filename,'wb') as fw:
-                print(f"Write to file {filename}")
-                # print(f"packet={packet}")
-                wrpcap(filename, [packet])
-                # writer = dpkt.pcap.Writer(fw)
-                # writer.writepkt(pkt=head+data,ts=timestamp)
-            fw.close()
-            print(f"[0]decoded data: {decodedData}")
+            # print(f"[0]decoded data: {decodedData}")
             stamp, points = decodedData
-            print(f"Num points: {len(points)}")
-            return True
+            # print(f"Num points: {len(points)}")
+            return packet
         else:
-            print(f"[1]decoded data: {decodedData}")
-            return False
+            # print(f"[1]decoded data: {decodedData}")
+            return None
+        
+    def _recvfrom(self):
+        while not exitFlag:
+            self.q.put(item=(time.time(), *self.socket.recvfrom(vd.PACKET_SIZE * 2))) # push tuple (timeStamp, data, addr) to the queue
+            
+    def q2pcap(self, baseThread:threading.Thread=None, filename:str=None):
+        assert baseThread is not None, f"Must specify baseThread (threading.Thread class) on which `q2pcap` is relied."
+        assert filename is not None, f"Must specify filename."
+        etherIPHead=(
+                Ether(src='ff:ff:ff:ff:ff:ff',dst='ff:ff:ff:ff:ff:ff') # dst mac addr is broadcast with no doubt, but the src mac addr is also broadcast from the pcap file recorded by veloview. This would not affect the function of captured pcap file.
+                / IP(src='192.168.0.200',dst='255.255.255.255') # src ip should be the ip of the lidar but is 192.168.0.200 in the pcap file recorded by veloview. This would not affect the function of captured pcap file.
+                )
+        pktList=[]
+        while True:
+            if self.q.empty() and not baseThread.is_alive(): # exit thread
+                if not len(pktList)==0:
+                    with open(filename,'wb') as fw:
+                        print(f"Write to file {filename}")
+                        wrpcap(filename, pktList)
+                    fw.close()
+                else:
+                    print(f"pktList is empty.")
+                break
+            elif self.q.empty() and baseThread.is_alive(): # waiting for data
+                # print(f"q is empty, continue.")
+                continue
+            else: # processing data
+                oneTimestamp,oneData,oneAddress=self.q.get()
+                # print(f"processing data of timestamp {oneTimestamp}")
+                packet = (
+                    etherIPHead
+                    / UDP(sport=oneAddress[1],dport=oneAddress[1],chksum=0) # checksum is set to 0 (ignore) according to the pcap file recorded by veloview.
+                    / oneData # use operator / to append the recieved data at last
+                    )
+                packet.time=oneTimestamp
+                pktList.append(packet)
         
 def main(args):
     myld=ld(args.model,args.ip_lidar,args.dataport,args.rpm,args.returnmode)
@@ -230,13 +264,26 @@ def main(args):
                     break
         elif args.mode=='pcap':
             # write mode
-            while True:
-                utc_time=datetime.now(timezone.utc)
-                pcapFilename=os.path.join(outdir,utc_time.strftime('%Y%m%dT%H%M%S.%f')+'.pcap')
-                if myld.stream2pcap(pcapFilename,utc_time.timestamp()):
-                    break
-                else:
-                    continue
+            utc_time=datetime.now(timezone.utc)
+            filenamePrefix=args.model+'_'+str(args.rpm)+'rpm'+args.returnmode.capitalize()+'_'
+            pcapFilename=os.path.join(outdir,filenamePrefix+utc_time.strftime('%Y%m%dT%H%M%S.%f')+'.pcap')
+            threadList=[]
+            threadRecv=threading.Thread(target=myld._recvfrom,name='_recvfrom')
+            threadList.append(threadRecv)
+            threadQ2pcap=threading.Thread(target=myld.q2pcap,name='q2pcap',args=(threadRecv,pcapFilename))
+            threadList.append(threadQ2pcap)
+            for oneThread in threadList:
+                print(f"Starting thread:\t{oneThread.name}.")
+                oneThread.start()
+            
+            time.sleep(30)
+            global exitFlag
+            exitFlag=True
+            
+            for oneThread in threadList:
+                oneThread.join()
+                print(f"Thread {oneThread.name} stopped.")
+                
     except KeyboardInterrupt as e:
         print(e)
     finally:
@@ -248,7 +295,7 @@ if __name__=="__main__":
     parser.add_argument('--ip-lidar', default='192.168.1.201', type=str,metavar="Lidar_IP", help="IP addr of velodyne lidar. Default:'192.168.1.201'.")
     parser.add_argument('--ip-local', default='', type=str,metavar="localhost", help="IP addr of localhost, not the velodyne lidar. Default:''(listen to all).")
     parser.add_argument('--dataport', default=2368, type=int,metavar="PORT", help="Data port to be listened for UDP packages. Default: 2368.")
-    parser.add_argument('--rpm', default=600, type=int,metavar="RPM", help="RPM of the velodyne lidar to be set.")
+    parser.add_argument('--rpm', default=1200, type=int,metavar="RPM", help="RPM of the velodyne lidar to be set.")
     parser.add_argument('--returnmode',default='dual',choices=['strongest','last','dual'],type=str,metavar="ReturnMode", help="pcap: read data and write to pcap file; live: read data in stream mode.")
     parser.add_argument('--mode',default='pcap',choices=['pcap','live'],type=str,metavar="MODE", help="pcap: read data and write to pcap file; live: read data in stream mode.")
     parser.add_argument('--outdir',default='out',type=str,metavar="DIR", help="output path.")
