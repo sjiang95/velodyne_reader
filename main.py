@@ -224,7 +224,7 @@ class ld:
         while not exitFlag:
             self.q.put(item=(time.time(), *self.socket.recvfrom(vd.PACKET_SIZE * 2))) # push tuple (timeStamp, data, addr) to the queue
             
-    def q2pcap(self, baseThread:threading.Thread=None, filename:str=None):
+    def q2pcap(self, baseThread:threading.Thread=None, filename:str=None, logger=None):
         assert baseThread is not None, f"Must specify baseThread (threading.Thread class) on which `q2pcap` is relied."
         assert filename is not None, f"Must specify filename."
         etherIPHead=(
@@ -262,50 +262,53 @@ def main(args):
     utcDate=datetime.now(timezone.utc).strftime('%Y%m%d')
     outdir=os.path.join(args.outdir,utcDate)
     if not os.path.exists(outdir): os.makedirs(outdir)
-    print(f"Outputs will be written to {outdir}.")
+    logger.info(f"Outputs will be written to {outdir}.")
     try:
         myld.launch()
-        if args.mode=='live':
-            # live mode
-            for Data in myld.read_live_data():
-                if Data != None:
-                    utc_time=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S.%f')
-                    stamp, points = Data
-                    print(utc_time, points.shape)
-                    print(f"points:{points}")
-                    break
-        elif args.mode=='pcap':
-            # write mode
-            utc_time=datetime.now(timezone.utc)
-            filenamePrefix=args.model+'_'+str(args.rpm)+'rpm'+args.returnmode.capitalize()+'_'
-            pcapFilename=os.path.join(outdir,filenamePrefix+utc_time.strftime('%Y%m%dT%H%M%S.%f')+'.pcap')
-    
-            # log
-            fileHandler = logging.FileHandler(os.path.join(outdir,filenamePrefix+utc_time.strftime('%Y%m%dT%H%M%S.%f')+'.log')) # 输出到文件的handler
-            fileHandler.setFormatter(formatter)
-            logger.addHandler(fileHandler)
-    
-            threadList=[]
-            threadRecv=threading.Thread(target=myld._recvfrom,name='_recvfrom')
-            threadList.append(threadRecv)
-            threadQ2pcap=threading.Thread(target=myld.q2pcap,name='q2pcap',args=(threadRecv,pcapFilename,logger))
-            threadList.append(threadQ2pcap)
-            for oneThread in threadList:
-                logger.info(f"Starting thread:\t{oneThread.name}.")
-                oneThread.start()
-            
-            time.sleep(30)
-            global exitFlag
-            exitFlag=True
-            
-            for oneThread in threadList:
-                oneThread.join()
-                logger.info(f"Thread {oneThread.name} stopped.")
-                
-    except KeyboardInterrupt as e:
-        print(e)
-    finally:
+    except Exception as e:
+        logger.critical(e)
         myld.stop()
+        exit(1)
+        
+    if args.mode=='live':
+        # live mode
+        for Data in myld.read_live_data():
+            if Data != None:
+                utc_time=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S.%f')
+                stamp, points = Data
+                print(utc_time, points.shape)
+                print(f"points:{points}")
+                break
+    elif args.mode=='pcap':
+        # write mode
+        utc_time=datetime.now(timezone.utc)
+        filenamePrefix=args.model+'_'+str(args.rpm)+'rpm'+args.returnmode.capitalize()+'_'
+        pcapFilename=os.path.join(outdir,filenamePrefix+utc_time.strftime('%Y%m%dT%H%M%S.%f')+'.pcap')
+    
+        # log
+        fileHandler = logging.FileHandler(os.path.join(outdir,filenamePrefix+utc_time.strftime('%Y%m%dT%H%M%S.%f')+'.log')) # 输出到文件的handler
+        fileHandler.setFormatter(formatter)
+        logger.addHandler(fileHandler)
+    
+        threadList=[]
+        threadRecv=threading.Thread(target=myld._recvfrom,name='_recvfrom')
+        threadList.append(threadRecv)
+        threadQ2pcap=threading.Thread(target=myld.q2pcap,name='q2pcap',args=(threadRecv,pcapFilename,logger))
+        threadList.append(threadQ2pcap)
+        for oneThread in threadList:
+            logger.info(f"Starting thread:\t{oneThread.name}.")
+            oneThread.start()
+            
+        time.sleep(30)
+        global exitFlag
+        exitFlag=True
+            
+        for oneThread in threadList:
+            oneThread.join()
+            logger.info(f"Thread {oneThread.name} stopped.")
+    
+    myld.stop()
+                
         
 if __name__=="__main__":
     parser=argparse.ArgumentParser(description="read data directly from velodyne lidar")
