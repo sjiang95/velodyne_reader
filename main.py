@@ -26,7 +26,7 @@ from scapy.all import wrpcap, Ether, IP, UDP
 import logging
 logger = logging.getLogger()
 logger.setLevel('DEBUG')
-BASIC_FORMAT = "%(asctime)s:%(levelname)s:%(message)s"
+BASIC_FORMAT = "%(asctime)s.%(msecs)03d:%(levelname)s:%(message)s"
 DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
 formatter = logging.Formatter(BASIC_FORMAT, DATE_FORMAT)
 terminalHandler = logging.StreamHandler() # 输出到控制台的handler
