@@ -96,6 +96,19 @@ class ld:
                 time.sleep(delayBetweenRetries)    
         return False
     
+    def isAlive(self):
+        """
+        Return True if `laser is On` or `rpm!=0`.
+        """
+        http = urllib3.PoolManager()
+        response = http.request('GET',self.Base_URL+"status.json")
+        if response: 
+            status = json.loads(response.data) 
+            if status['laser']['state']=='On' or status['motor']['rpm']!=0:
+                return True
+            else:
+                return False
+        
     def launch(self):
         print(f"Launch the device {self.model} at {self.lidarip}:")
         rc = self.sensor_do(self.Base_URL+'reset', urlencode({'data':'reset_system'}), self.buffer) 
@@ -245,7 +258,7 @@ def main(args):
             oneThread.join()
             logger.info(f"Thread {oneThread.name} stopped.")
     
-    myld.stop()
+    if myld.isAlive(): myld.stop()
                 
         
 if __name__=="__main__":
