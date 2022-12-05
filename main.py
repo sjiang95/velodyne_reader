@@ -152,27 +152,6 @@ class ld:
             recv_stamp = time.time()
             yield self.decoder.decode(recv_stamp, data, self.as_pcl_structs)
             
-    def stream2pcap(self, timestamp:float=None):
-        data, address = self.socket.recvfrom(vd.PACKET_SIZE * 2)
-        # print(f"recvfrom {address}")
-        # print(f"data={data}")
-        recv_stamp = time.time() if timestamp==None else timestamp
-        decodedData=self.decoder.decode(recv_stamp, data, self.as_pcl_structs)
-        if decodedData is not None:
-            packet = (
-                Ether(src='ff:ff:ff:ff:ff:ff',dst='ff:ff:ff:ff:ff:ff') # dst mac addr is broadcast with no doubt, but the src mac addr is also broadcast from the pcap file recorded by veloview. This would not affect the function of captured pcap file.
-                / IP(src='192.168.0.200',dst='255.255.255.255') # src ip should be the ip of the lidar but is 192.168.0.200 in the pcap file recorded by veloview. This would not affect the function of captured pcap file.
-                / UDP(sport=address[1],dport=address[1],chksum=0) # checksum is set to 0 (ignore) according to the pcap file recorded by veloview.
-                / data # use operator / to append the recieved data at last
-                )
-            # print(f"[0]decoded data: {decodedData}")
-            stamp, points = decodedData
-            # print(f"Num points: {len(points)}")
-            return packet
-        else:
-            # print(f"[1]decoded data: {decodedData}")
-            return None
-        
     def _recvfrom(self):
         while not exitFlag:
             self.qStream.put(item=(time.time(), *self.socket.recvfrom(vd.PACKET_SIZE * 2))) # push tuple (timeStamp, data, addr) to the queue
