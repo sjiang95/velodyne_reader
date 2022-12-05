@@ -79,11 +79,21 @@ class ld:
         self.sensor.setopt(self.sensor.URL, url) 
         self.sensor.setopt(self.sensor.POSTFIELDS, pf) 
         self.sensor.setopt(self.sensor.WRITEDATA, buf) 
-        self.sensor.perform() 
-        rcode = self.sensor.getinfo(self.sensor.RESPONSE_CODE) 
-        success = rcode in range(200, 207) 
-        print(f"{url} {pf}: {rcode} ({'OK' if success else 'ERROR'})") 
-        return success
+        retriesLeft = 3
+        delayBetweenRetries = 5 # seconds
+        while retriesLeft > 0:
+            try:
+                self.sensor.perform() 
+                rcode = self.sensor.getinfo(self.sensor.RESPONSE_CODE) 
+                success = rcode in range(200, 207) 
+                logger.info(f"{url} {pf}: {rcode} ({'OK' if success else 'ERROR'})") 
+                return success
+            except Exception as e:
+                logger.warning(e)
+                logger.info(f"retrying after {delayBetweenRetries}s.")
+                retriesLeft -= 1
+                time.sleep(delayBetweenRetries)    
+        return False
     
     def launch(self):
         print(f"Launch the devide {self.model} at {self.lidarip}:")
@@ -192,12 +202,7 @@ def main(args):
     outdir=os.path.join(args.outdir,utcDate)
     if not os.path.exists(outdir): os.makedirs(outdir)
     logger.info(f"Outputs will be written to {outdir}.")
-    try:
-        myld.launch()
-    except Exception as e:
-        logger.critical(e)
-        myld.stop()
-        exit(1)
+    myld.launch()
         
     if args.mode=='live':
         # live mode
