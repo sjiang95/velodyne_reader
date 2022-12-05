@@ -165,7 +165,7 @@ class ld:
                 Ether(src='ff:ff:ff:ff:ff:ff',dst='ff:ff:ff:ff:ff:ff') # dst mac addr is broadcast with no doubt, but the src mac addr is also broadcast from the pcap file recorded by veloview. This would not affect the function of captured pcap file.
                 / IP(src='192.168.0.200',dst='255.255.255.255') # src ip should be the ip of the lidar but is 192.168.0.200 in the pcap file recorded by veloview. This would not affect the function of captured pcap file.
                 )
-        pktWriter=PcapWriter(filename=filename,append=True)#,sync=True
+        pktWriter=PcapWriter(filename=filename,sync=True) # Make sure setting `sync=True` for steady file output. Otherwise the frames parsed by veloview would be chaotic.
         counter=0
         while True:
             if self.qStream.empty() and not baseThread.is_alive(): # exit thread
