@@ -142,6 +142,7 @@ class ld:
             if response: 
                 status = json.loads(response.data) 
                 logger.info(f"Sensor laser is {status['laser']['state']}, motor rpm is {status['motor']['rpm']}")
+        self.socket.close()
         self.sensor.close()
 
     def read_live_data(self):
