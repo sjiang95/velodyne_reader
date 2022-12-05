@@ -96,7 +96,7 @@ class ld:
         return False
     
     def launch(self):
-        print(f"Launch the devide {self.model} at {self.lidarip}:")
+        print(f"Launch the device {self.model} at {self.lidarip}:")
         rc = self.sensor_do(self.Base_URL+'reset', urlencode({'data':'reset_system'}), self.buffer) 
         if rc: 
             time.sleep(5) 
