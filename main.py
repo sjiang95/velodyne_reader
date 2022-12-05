@@ -91,9 +91,10 @@ class ld:
                 return success
             except Exception as e:
                 logger.warning(e)
-                logger.info(f"retrying after {delayBetweenRetries}s.")
+                for i in reversed(range(delayBetweenRetries)):
+                    logger.info(f"retrying after {i+1}s.")
+                    time.sleep(1)
                 retriesLeft -= 1
-                time.sleep(delayBetweenRetries)    
         return False
     
     def isAlive(self):
