@@ -176,6 +176,7 @@ class ld:
     def _recvfrom(self):
         while not exitFlag:
             self.qStream.put(item=(time.time(), *self.socket.recvfrom(vd.PACKET_SIZE * 2))) # push tuple (timeStamp, data, addr) to the queue
+        self.stop()
             
     def stream2pcap(self, baseThread:threading.Thread=None, filename:str=None, logger=None):
         assert baseThread is not None, f"Must specify baseThread (threading.Thread class) on which `q2pcap` is relied."
