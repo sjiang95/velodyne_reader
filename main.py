@@ -22,6 +22,7 @@ import queue
 import threading
 import dpkt
 from scapy.all import wrpcap, Ether, IP, UDP
+from scapy.utils import PcapWriter
 
 import logging
 logger = logging.getLogger()
@@ -73,7 +74,7 @@ class ld:
         self.socket.bind((self.localhost, self.dataPort))
         
         # data container
-        self.q=queue.Queue()
+        self.qStream=queue.Queue()
 
     def sensor_do(self, url, pf, buf):
         self.sensor.setopt(self.sensor.URL, url) 
@@ -161,40 +162,39 @@ class ld:
         
     def _recvfrom(self):
         while not exitFlag:
-            self.q.put(item=(time.time(), *self.socket.recvfrom(vd.PACKET_SIZE * 2))) # push tuple (timeStamp, data, addr) to the queue
+            self.qStream.put(item=(time.time(), *self.socket.recvfrom(vd.PACKET_SIZE * 2))) # push tuple (timeStamp, data, addr) to the queue
             
-    def q2pcap(self, baseThread:threading.Thread=None, filename:str=None, logger=None):
+    def stream2pcap(self, baseThread:threading.Thread=None, filename:str=None, logger=None):
         assert baseThread is not None, f"Must specify baseThread (threading.Thread class) on which `q2pcap` is relied."
         assert filename is not None, f"Must specify filename."
         etherIPHead=(
                 Ether(src='ff:ff:ff:ff:ff:ff',dst='ff:ff:ff:ff:ff:ff') # dst mac addr is broadcast with no doubt, but the src mac addr is also broadcast from the pcap file recorded by veloview. This would not affect the function of captured pcap file.
                 / IP(src='192.168.0.200',dst='255.255.255.255') # src ip should be the ip of the lidar but is 192.168.0.200 in the pcap file recorded by veloview. This would not affect the function of captured pcap file.
                 )
-        pktList=[]
+        pktWriter=PcapWriter(filename=filename,append=True)#,sync=True
+        counter=0
         while True:
-            if self.q.empty() and not baseThread.is_alive(): # exit thread
-                if not len(pktList)==0:
-                    with open(filename,'wb') as fw:
-                        logger.info(f"Write to file {filename}")
-                        wrpcap(filename, pktList[1:]) # The time difference between first (idx=0) and second (idx=1) packet is 10s of unkonwn reason. Solution is to discard the first (idx=0) packet.
-                    fw.close()
-                else:
-                    logger.warning(f"pktList is empty.")
+            if self.qStream.empty() and not baseThread.is_alive(): # exit thread
                 break
-            elif self.q.empty() and baseThread.is_alive(): # waiting for data
+            elif self.qStream.empty() and baseThread.is_alive(): # waiting for data
                 # print(f"q is empty, continue.")
                 continue
             else: # processing data
-                oneTimestamp,oneData,oneAddress=self.q.get()
-                if logger is not None: logger.info(f"processing data of timestamp {oneTimestamp}, {self.q.qsize()} samples left in queue.")
-                # print(f"processing data of timestamp {oneTimestamp}, {self.q.qsize()} samples left in queue.") # if this line is comment out, 
+                oneTimestamp,oneData,oneAddress=self.qStream.get()
+                if counter==0: # discard first (idx==0) sample due to its strange time difference to the 2nd sample
+                    counter+=1
+                    continue
+                counter+=1
                 packet = (
                     etherIPHead
                     / UDP(sport=oneAddress[1],dport=oneAddress[1],chksum=0) # checksum is set to 0 (ignore) according to the pcap file recorded by veloview.
                     / oneData # use operator / to append the recieved data at last
                     )
                 packet.time=oneTimestamp
-                pktList.append(packet)
+                logger.info(f"Write pcap of timestamp {oneTimestamp} to file, {self.qStream.qsize()} samples wait to be written.")
+                pktWriter.write(packet)
+        pktWriter.close()
+                
         
 def main(args):
     myld=ld(args.model,args.ip_lidar,args.dataport,args.rpm,args.returnmode)
@@ -227,8 +227,8 @@ def main(args):
         threadRecv=threading.Thread(target=myld._recvfrom,name='_recvfrom')
         threadList.append(threadRecv)
         pcapFilename=os.path.join(outdir,filenamePrefix+utc_time.strftime('%Y%m%dT%H%M%S.%f')+'.pcap')
-        threadQ2pcap=threading.Thread(target=myld.q2pcap,name='q2pcap',args=(threadRecv,pcapFilename,logger))
-        threadList.append(threadQ2pcap)
+        threadStream2pcap=threading.Thread(target=myld.stream2pcap,name='stream2pcap',args=(threadRecv,pcapFilename,logger))
+        threadList.append(threadStream2pcap)
         for oneThread in threadList:
             logger.info(f"Starting thread:\t{oneThread.name}.")
             oneThread.start()
