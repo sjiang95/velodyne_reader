@@ -129,7 +129,7 @@ class ld:
             print (f"Sensor laser is {status['laser']['state']}, motor rpm is {status['motor']['rpm']}")
     
     def stop(self):
-        print(f"Stopping the devide {self.model} at {self.lidarip}:")
+        logger.info(f"Stopping the device {self.model} at {self.lidarip}:")
         rc = self.sensor_do(self.Base_URL+'setting', urlencode({'rpm':'0'}), self.buffer) 
         if rc: 
             time.sleep(2) 
@@ -140,7 +140,7 @@ class ld:
             response = http.request('GET',self.Base_URL+"status.json")
             if response: 
                 status = json.loads(response.data) 
-                print (f"Sensor laser is {status['laser']['state']}, motor rpm is {status['motor']['rpm']}")
+                logger.info(f"Sensor laser is {status['laser']['state']}, motor rpm is {status['motor']['rpm']}")
         self.sensor.close()
 
     def read_live_data(self):
