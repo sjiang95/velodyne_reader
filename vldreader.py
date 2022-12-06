@@ -54,6 +54,7 @@ class ld:
         assert model in supportModels,f"Unsupported model {model}, please choose from {supportModels}."
         # utils
         self.logger=logger
+        self.progressBar=None
         
         # velodyne lidar
         self.lidarip=lidarip
@@ -78,8 +79,6 @@ class ld:
         
         # data container
         self.qStream=queue.Queue()
-        
-        self.progressBar=None
 
     def sensor_do(self, url, pf, buf):
         self.sensor.setopt(self.sensor.URL, url) 
