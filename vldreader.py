@@ -14,7 +14,6 @@ import socket
 import argparse
 import time
 from datetime import datetime, timezone
-from tzlocal import get_localzone
 import os
 import queue
 import threading
