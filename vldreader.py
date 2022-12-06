@@ -112,6 +112,9 @@ class ld:
 
 
     def sensor_do(self, url, pf, buf):
+        """
+        From VLP-16 user mannual
+        """
         self.sensor.setopt(self.sensor.URL, url) 
         self.sensor.setopt(self.sensor.POSTFIELDS, pf) 
         self.sensor.setopt(self.sensor.WRITEDATA, buf) 
