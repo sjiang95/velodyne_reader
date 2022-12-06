@@ -42,14 +42,14 @@ If you did not tune the lidar's ip address and its data port, simply run
 python vldreader.py --model VLP-16 --rpm 1200
 ```
 
-### As component
+### As a component
 
 Of course, you can also use this script as a module in your project.
 
 ```python
 from /path/to/vldreader.py import ld
 
-myld=ld(model='VLP-16', lidarip='192.168.1.201', dataPort=2368, rpm:int=600, retrunMode='dual')
+myld=ld(model='VLP-16', lidarip='192.168.1.201', dataPort=2368, rpm=600, returnMode='dual')
 
 # launch the device
 myld.launch()
