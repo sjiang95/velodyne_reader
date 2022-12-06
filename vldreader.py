@@ -200,7 +200,10 @@ class ld:
             
     def stream2pcap(self, baseThread:threading.Thread=None, filename:str=None):
         assert baseThread is not None, f"Must specify baseThread (threading.Thread class) on which `q2pcap` is relied."
-        assert filename is not None, f"Must specify filename."
+        if filename is None: 
+            outdir=os.path.join("out",self.utcDate)
+            if not os.path.exists(outdir): os.makedirs(outdir)
+            filename =os.path.join(outdir,self.filePref+'.pcap')
         etherIPHead=(
                 Ether(src='ff:ff:ff:ff:ff:ff',dst='ff:ff:ff:ff:ff:ff') # dst mac addr is broadcast with no doubt, but the src mac addr is also broadcast from the pcap file recorded by veloview. This would not affect the function of captured pcap file.
                 / IP(src='192.168.0.200',dst='255.255.255.255') # src ip should be the ip of the lidar but is 192.168.0.200 in the pcap file recorded by veloview. This would not affect the function of captured pcap file.
@@ -259,7 +262,7 @@ def main(args):
         threadList=[]
         threadRecv=threading.Thread(target=myld._recvfrom,name='_recvfrom')
         threadList.append(threadRecv)
-        pcapFilename=os.path.join(outdir,filenamePrefix+utc_time.strftime('%Y%m%dT%H%M%S.%f')+'.pcap')
+        pcapFilename=os.path.join(outdir,filenamePrefix+'.pcap')
         threadStream2pcap=threading.Thread(target=myld.stream2pcap,name='stream2pcap',args=(threadRecv,pcapFilename))
         threadList.append(threadStream2pcap)
         for oneThread in threadList:
