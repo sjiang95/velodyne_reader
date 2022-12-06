@@ -51,7 +51,7 @@ class ld:
                  lidarip:str='192.168.1.201', 
                  dataPort:int=2368, 
                  rpm:int=600,
-                 retrunMode:str='dual',
+                 returnMode:str='dual',
                  localhost:str='',
                  as_pcl_structs:bool=False,
                  filePref:str=None) -> None:
@@ -66,8 +66,8 @@ class ld:
         self.as_pcl_structs=as_pcl_structs
         self.model=model
         self.rpm=rpm
-        assert retrunMode in ['strongest','last','dual'], f"returnMode must be one of ['strongest','last','dual'], but got {retrunMode}"
-        self.retrunMode=retrunMode.capitalize()
+        assert returnMode in ['strongest','last','dual'], f"returnMode must be one of ['strongest','last','dual'], but got {returnMode}"
+        self.returnMode=returnMode.capitalize()
         self.config=vd.Config(model=self.model, rpm=self.rpm)
         self.decoder = vd.StreamDecoder(self.config)
         self.utc_time=datetime.now(timezone.utc)
@@ -153,7 +153,7 @@ class ld:
         rc = self.sensor_do(self.Base_URL+'reset', urlencode({'data':'reset_system'}), self.buffer) 
         if rc: 
             time.sleep(5) 
-            rc = self.sensor_do(self.Base_URL+'setting', urlencode({'returns':self.retrunMode}), self.buffer)
+            rc = self.sensor_do(self.Base_URL+'setting', urlencode({'returns':self.returnMode}), self.buffer)
         if rc: 
             time.sleep(5) 
             rc = self.sensor_do(self.Base_URL+'setting', urlencode({'rpm':self.rpm}), self.buffer) 
@@ -254,12 +254,7 @@ def main(args):
     elif args.mode=='pcap':
         # write mode
         utc_time=datetime.now(timezone.utc)
-        filenamePrefix=args.model+'_'+str(args.rpm)+'rpm'+args.returnmode.capitalize()+'_'
-    
-        # log
-        fileHandler = logging.FileHandler(os.path.join(outdir,filenamePrefix+utc_time.strftime('%Y%m%dT%H%M%S.%f')+'.log')) # handler write to .log file
-        fileHandler.setFormatter(formatter)
-        logger.addHandler(fileHandler)
+        filenamePrefix=args.model+'_'+str(args.rpm)+'rpm'+args.returnmode.capitalize()+'_'+utc_time.strftime('%Y%m%dT%H%M%S.%f')
     
         threadList=[]
         threadRecv=threading.Thread(target=myld._recvfrom,name='_recvfrom')
