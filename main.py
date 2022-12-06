@@ -18,6 +18,7 @@ from tzlocal import get_localzone
 import os
 import queue
 import threading
+from tqdm import tqdm
 from scapy.all import Ether, IP, UDP
 from scapy.utils import PcapWriter
 
@@ -76,6 +77,8 @@ class ld:
         
         # data container
         self.qStream=queue.Queue()
+        
+        self.progressBar=None
 
     def sensor_do(self, url, pf, buf):
         self.sensor.setopt(self.sensor.URL, url) 
@@ -110,6 +113,9 @@ class ld:
                 return True
             else:
                 return False
+            
+    def initProgressBar(self, maxiters:int,desc:str=None):
+        return tqdm(total=maxiters,desc=desc)
         
     def launch(self):
         self.logger.info(f"Launch the device {self.model} at {self.lidarip}:")
@@ -158,6 +164,7 @@ class ld:
     def _recvfrom(self):
         while not exitFlag:
             self.qStream.put(item=(time.time(), *self.socket.recvfrom(vd.PACKET_SIZE * 2))) # push tuple (timeStamp, data, addr) to the queue
+        self.progressBar=self.initProgressBar(maxiters=self.qStream.qsize(),desc="Writing to disk")
         self.stop()
             
     def stream2pcap(self, baseThread:threading.Thread=None, filename:str=None):
@@ -187,9 +194,13 @@ class ld:
                     / oneData # use operator / to append the recieved data at last
                     )
                 packet.time=oneTimestamp
-                self.logger.info(f"Write pcap of timestamp {oneTimestamp} to file, {self.qStream.qsize()} samples wait to be written.")
+                if self.progressBar is not None: 
+                    self.progressBar.update(1)
+                else:
+                    self.logger.info(f"Write pcap of timestamp {oneTimestamp} to file, {self.qStream.qsize()} samples wait to be written.")
                 pktWriter.write(packet)
         pktWriter.close()
+        if self.progressBar is not None: self.progressBar.close()
                 
         
 def main(args):
