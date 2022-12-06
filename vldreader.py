@@ -26,7 +26,6 @@ import velodyne_decoder as vd
 from velodyne_decoder_pylib import *
 supportModels=vd.Config.SUPPORTED_MODELS
 
-exitFlag=False
 class ld:
     """
     Class for velodyne lidars.
@@ -88,6 +87,9 @@ class ld:
         
         # data container
         self.qStream=queue.Queue()
+        
+        # workflow flag
+        self.stream2pcapFlag=False # use this flag to break loop in func stream2pcap()
         
     def buildlogger(self):
         import logging
@@ -196,7 +198,7 @@ class ld:
             yield self.decoder.decode(recv_stamp, data, self.as_pcl_structs)
             
     def _recvfrom(self):
-        while not exitFlag:
+        while not self.stream2pcapFlag:
             self.qStream.put(item=(time.time(), *self.socket.recvfrom(vd.PACKET_SIZE * 2))) # push tuple (timeStamp, data, addr) to the queue
         self.progressBar=self.initProgressBar(maxiters=self.qStream.qsize(),desc="Writing to disk")
         self.stop()
@@ -277,8 +279,7 @@ def main(args):
         except KeyboardInterrupt:
             myld.logger.info("User interruption.")
         finally:
-            global exitFlag
-            exitFlag=True
+            myld.stream2pcapFlag=True
             
         for oneThread in threadList:
             oneThread.join()
