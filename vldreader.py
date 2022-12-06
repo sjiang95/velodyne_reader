@@ -20,17 +20,6 @@ from tqdm import tqdm
 from scapy.all import Ether, IP, UDP
 from scapy.utils import PcapWriter
 
-import logging
-logger = logging.getLogger()
-logger.setLevel('DEBUG')
-BASIC_FORMAT = "%(asctime)s.%(msecs)03d:%(levelname)s:%(message)s"
-DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
-formatter = logging.Formatter(BASIC_FORMAT, DATE_FORMAT)
-terminalHandler = logging.StreamHandler() # handler outputs to console
-terminalHandler.setFormatter(formatter)
-terminalHandler.setLevel('INFO')
-logger.addHandler(terminalHandler)
-
 # velodyne
 # https://github.com/valgur/velodyne_decoder
 import velodyne_decoder as vd
@@ -49,10 +38,9 @@ class ld:
                  retrunMode:str='dual',
                  localhost:str='',
                  as_pcl_structs:bool=False,
-                 logger:logging.Logger=None) -> None:
+                 filePref:str=None) -> None:
         assert model in supportModels,f"Unsupported model {model}, please choose from {supportModels}."
         # utils
-        self.logger=logger
         self.progressBar=None
         
         # velodyne lidar
@@ -66,6 +54,12 @@ class ld:
         self.retrunMode=retrunMode.capitalize()
         self.config=vd.Config(model=self.model, rpm=self.rpm)
         self.decoder = vd.StreamDecoder(self.config)
+        self.utc_time=datetime.now(timezone.utc)
+        self.utcDate=self.utc_time.strftime('%Y%m%d')
+        self.filePref=filePref if filePref is not None else self.model+'_'+str(self.rpm)+'rpm'+self.returnMode.capitalize()+'_'+self.utc_time.strftime('%Y%m%dT%H%M%S.%f')
+        
+        # logger
+        self.logger=self.buildlogger()
         
         # communication
         self.localhost=localhost
@@ -78,6 +72,28 @@ class ld:
         
         # data container
         self.qStream=queue.Queue()
+        
+    def buildlogger(self):
+        import logging
+        logger = logging.getLogger()
+        logger.setLevel('DEBUG')
+        BASIC_FORMAT = "%(asctime)s.%(msecs)03d:%(levelname)s:%(message)s"
+        DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
+        formatter = logging.Formatter(BASIC_FORMAT, DATE_FORMAT)
+        terminalHandler = logging.StreamHandler() # handler outputs to console
+        terminalHandler.setFormatter(formatter)
+        terminalHandler.setLevel('INFO')
+        logger.addHandler(terminalHandler)
+        outdir=os.path.join("log",self.utcDate)
+        if not os.path.exists(outdir): os.makedirs(outdir)
+        fileHandler = logging.FileHandler(os.path.join(outdir,self.filePref+'.log')) # handler write to .log file
+        fileHandler.setFormatter(formatter)
+        logger.addHandler(fileHandler)
+        
+        logger.info(f"Logs will be written to {outdir}.")
+        
+        return logger
+
 
     def sensor_do(self, url, pf, buf):
         self.sensor.setopt(self.sensor.URL, url) 
@@ -203,11 +219,11 @@ class ld:
                 
         
 def main(args):
-    myld=ld(args.model,args.ip_lidar,args.dataport,args.rpm,args.returnmode,logger=logger)
+    myld=ld(args.model,args.ip_lidar,args.dataport,args.rpm,args.returnmode)
     utcDate=datetime.now(timezone.utc).strftime('%Y%m%d')
     outdir=os.path.join(args.outdir,utcDate)
     if not os.path.exists(outdir): os.makedirs(outdir)
-    logger.info(f"Outputs will be written to {outdir}.")
+    myld.logger.info(f"Outputs will be written to {outdir}.")
     myld.launch()
         
     if args.mode=='live':
@@ -236,20 +252,20 @@ def main(args):
         threadStream2pcap=threading.Thread(target=myld.stream2pcap,name='stream2pcap',args=(threadRecv,pcapFilename))
         threadList.append(threadStream2pcap)
         for oneThread in threadList:
-            logger.info(f"Starting thread:\t{oneThread.name}.")
+            myld.logger.info(f"Starting thread:\t{oneThread.name}.")
             oneThread.start()
             
         try:
             time.sleep(60) # seconds
         except KeyboardInterrupt:
-            logger.info("User interruption.")
+            myld.logger.info("User interruption.")
         finally:
             global exitFlag
             exitFlag=True
             
         for oneThread in threadList:
             oneThread.join()
-            logger.info(f"Thread {oneThread.name} stopped.")
+            myld.logger.info(f"Thread {oneThread.name} stopped.")
     
     if myld.isAlive(): myld.stop()
                 
