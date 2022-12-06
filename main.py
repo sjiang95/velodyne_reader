@@ -68,7 +68,7 @@ class ld:
         self.localhost=localhost
         self.sensor = pycurl.Curl()
         self.Base_URL = 'http://'+self.lidarip+'/cgi/'
-        print(f"Base_URL:{self.Base_URL}")
+        logger.info(f"Base_URL:{self.Base_URL}")
         self.buffer = BytesIO()
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.bind((self.localhost, self.dataPort))
@@ -87,7 +87,7 @@ class ld:
                 self.sensor.perform() 
                 rcode = self.sensor.getinfo(self.sensor.RESPONSE_CODE) 
                 success = rcode in range(200, 207) 
-                logger.info(f"{url} {pf}: {rcode} ({'OK' if success else 'ERROR'})") 
+                logger.info(f"{url} {pf}: {rcode} ({'OK' if success else 'ERROR'})")
                 return success
             except Exception as e:
                 logger.warning(e)
@@ -111,7 +111,7 @@ class ld:
                 return False
         
     def launch(self):
-        print(f"Launch the device {self.model} at {self.lidarip}:")
+        logger.info(f"Launch the device {self.model} at {self.lidarip}:")
         rc = self.sensor_do(self.Base_URL+'reset', urlencode({'data':'reset_system'}), self.buffer) 
         if rc: 
             time.sleep(5) 
@@ -127,7 +127,7 @@ class ld:
         response = http.request('GET',self.Base_URL+"status.json")
         if response: 
             status = json.loads(response.data) 
-            print (f"Sensor laser is {status['laser']['state']}, motor rpm is {status['motor']['rpm']}")
+            logger.info(f"Sensor laser is {status['laser']['state']}, motor rpm is {status['motor']['rpm']}")
     
     def stop(self):
         logger.info(f"Stopping the device {self.model} at {self.lidarip}:")
