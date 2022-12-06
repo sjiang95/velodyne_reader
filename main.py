@@ -48,7 +48,11 @@ class ld:
                  rpm:int=600,
                  retrunMode:str='dual',
                  localhost:str='',
-                 as_pcl_structs:bool=False) -> None:
+                 as_pcl_structs:bool=False,
+                 logger:logging.Logger=None) -> None:
+        # utils
+        self.logger=logger
+        
         # velodyne lidar
         self.lidarip=lidarip
         assert dataPort in range(65535),f"Arg 'dataPort' has to be in [0,65535], but got {dataPort}."
@@ -65,7 +69,7 @@ class ld:
         self.localhost=localhost
         self.sensor = pycurl.Curl()
         self.Base_URL = 'http://'+self.lidarip+'/cgi/'
-        logger.info(f"Base_URL:{self.Base_URL}")
+        self.logger.info(f"Base_URL:{self.Base_URL}")
         self.buffer = BytesIO()
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.bind((self.localhost, self.dataPort))
@@ -84,12 +88,12 @@ class ld:
                 self.sensor.perform() 
                 rcode = self.sensor.getinfo(self.sensor.RESPONSE_CODE) 
                 success = rcode in range(200, 207) 
-                logger.info(f"{url} {pf}: {rcode} ({'OK' if success else 'ERROR'})")
+                self.logger.info(f"{url} {pf}: {rcode} ({'OK' if success else 'ERROR'})")
                 return success
             except Exception as e:
-                logger.warning(e)
+                self.logger.warning(e)
                 for i in reversed(range(delayBetweenRetries)):
-                    logger.info(f"retrying after {i+1}s.")
+                    self.logger.info(f"retrying after {i+1}s.")
                     time.sleep(1)
                 retriesLeft -= 1
         return False
@@ -108,7 +112,7 @@ class ld:
                 return False
         
     def launch(self):
-        logger.info(f"Launch the device {self.model} at {self.lidarip}:")
+        self.logger.info(f"Launch the device {self.model} at {self.lidarip}:")
         rc = self.sensor_do(self.Base_URL+'reset', urlencode({'data':'reset_system'}), self.buffer) 
         if rc: 
             time.sleep(5) 
@@ -124,10 +128,10 @@ class ld:
         response = http.request('GET',self.Base_URL+"status.json")
         if response: 
             status = json.loads(response.data) 
-            logger.info(f"Sensor laser is {status['laser']['state']}, motor rpm is {status['motor']['rpm']}")
+            self.logger.info(f"Sensor laser is {status['laser']['state']}, motor rpm is {status['motor']['rpm']}")
     
     def stop(self):
-        logger.info(f"Stopping the device {self.model} at {self.lidarip}:")
+        self.logger.info(f"Stopping the device {self.model} at {self.lidarip}:")
         rc = self.sensor_do(self.Base_URL+'setting', urlencode({'rpm':'0'}), self.buffer) 
         if rc: 
             time.sleep(2) 
@@ -138,7 +142,7 @@ class ld:
             response = http.request('GET',self.Base_URL+"status.json")
             if response: 
                 status = json.loads(response.data) 
-                logger.info(f"Sensor laser is {status['laser']['state']}, motor rpm is {status['motor']['rpm']}")
+                self.logger.info(f"Sensor laser is {status['laser']['state']}, motor rpm is {status['motor']['rpm']}")
         self.socket.close()
         self.sensor.close()
 
@@ -156,7 +160,7 @@ class ld:
             self.qStream.put(item=(time.time(), *self.socket.recvfrom(vd.PACKET_SIZE * 2))) # push tuple (timeStamp, data, addr) to the queue
         self.stop()
             
-    def stream2pcap(self, baseThread:threading.Thread=None, filename:str=None, logger=None):
+    def stream2pcap(self, baseThread:threading.Thread=None, filename:str=None):
         assert baseThread is not None, f"Must specify baseThread (threading.Thread class) on which `q2pcap` is relied."
         assert filename is not None, f"Must specify filename."
         etherIPHead=(
@@ -183,13 +187,13 @@ class ld:
                     / oneData # use operator / to append the recieved data at last
                     )
                 packet.time=oneTimestamp
-                logger.info(f"Write pcap of timestamp {oneTimestamp} to file, {self.qStream.qsize()} samples wait to be written.")
+                self.logger.info(f"Write pcap of timestamp {oneTimestamp} to file, {self.qStream.qsize()} samples wait to be written.")
                 pktWriter.write(packet)
         pktWriter.close()
                 
         
 def main(args):
-    myld=ld(args.model,args.ip_lidar,args.dataport,args.rpm,args.returnmode)
+    myld=ld(args.model,args.ip_lidar,args.dataport,args.rpm,args.returnmode,logger=logger)
     utcDate=datetime.now(timezone.utc).strftime('%Y%m%d')
     outdir=os.path.join(args.outdir,utcDate)
     if not os.path.exists(outdir): os.makedirs(outdir)
@@ -219,7 +223,7 @@ def main(args):
         threadRecv=threading.Thread(target=myld._recvfrom,name='_recvfrom')
         threadList.append(threadRecv)
         pcapFilename=os.path.join(outdir,filenamePrefix+utc_time.strftime('%Y%m%dT%H%M%S.%f')+'.pcap')
-        threadStream2pcap=threading.Thread(target=myld.stream2pcap,name='stream2pcap',args=(threadRecv,pcapFilename,logger))
+        threadStream2pcap=threading.Thread(target=myld.stream2pcap,name='stream2pcap',args=(threadRecv,pcapFilename))
         threadList.append(threadStream2pcap)
         for oneThread in threadList:
             logger.info(f"Starting thread:\t{oneThread.name}.")
