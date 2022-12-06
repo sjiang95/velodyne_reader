@@ -27,9 +27,9 @@ logger.setLevel('DEBUG')
 BASIC_FORMAT = "%(asctime)s.%(msecs)03d:%(levelname)s:%(message)s"
 DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
 formatter = logging.Formatter(BASIC_FORMAT, DATE_FORMAT)
-terminalHandler = logging.StreamHandler() # 输出到控制台的handler
+terminalHandler = logging.StreamHandler() # handler outputs to console
 terminalHandler.setFormatter(formatter)
-terminalHandler.setLevel('INFO')  # 也可以不设置，不设置就默认用logger的level
+terminalHandler.setLevel('INFO')
 logger.addHandler(terminalHandler)
 
 # velodyne
@@ -225,7 +225,7 @@ def main(args):
         filenamePrefix=args.model+'_'+str(args.rpm)+'rpm'+args.returnmode.capitalize()+'_'
     
         # log
-        fileHandler = logging.FileHandler(os.path.join(outdir,filenamePrefix+utc_time.strftime('%Y%m%dT%H%M%S.%f')+'.log')) # 输出到文件的handler
+        fileHandler = logging.FileHandler(os.path.join(outdir,filenamePrefix+utc_time.strftime('%Y%m%dT%H%M%S.%f')+'.log')) # handler write to .log file
         fileHandler.setFormatter(formatter)
         logger.addHandler(fileHandler)
     
