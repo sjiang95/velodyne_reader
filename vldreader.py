@@ -30,6 +30,22 @@ exitFlag=False
 class ld:
     """
     Class for velodyne lidars.
+    
+    Args:
+        model: string
+            Device model. Must be one of the outputs of this command `python -c 'import velodyne_decoder as vd;print(vd.Config.SUPPORTED_MODELS)'`.
+        lidarip: string
+            The lidar's ip address. Default: 192.168.1.201.
+        rpm: int
+            Desired RPM of the lidar. Default: 600.
+        returnMode: string
+            Desired return mode of the lidar. Default: dual.
+        localhost: string
+            Interface to listen for UDP data packets sent from lidar. Default: ''(all network interfaces).
+        as_pcl_structs: bool
+            To return arrays of structs instead of the default contiguous arrays, set `as_pcl_structs=True`.
+        filePref: string
+            Filename prefix of the output `.pcap` and `.log` files. Default: `<model>_<rpm><returnMode>_<UTCtimestamp>`.
     """
     def __init__(self, model:str='',
                  lidarip:str='192.168.1.201', 
