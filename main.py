@@ -11,17 +11,14 @@ import urllib3
 import json 
 import time 
 import socket
-import numpy as np
-import cv2
 import argparse
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from tzlocal import get_localzone
 import os
 import queue
 import threading
-import dpkt
-from scapy.all import wrpcap, Ether, IP, UDP
+from scapy.all import Ether, IP, UDP
 from scapy.utils import PcapWriter
 
 import logging
