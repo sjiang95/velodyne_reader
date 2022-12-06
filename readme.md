@@ -48,6 +48,7 @@ Of course, you can also use this script as a module in your project.
 
 ```python
 from /path/to/vldreader.py import ld
+
 myld=ld(model='VLP-16', lidarip='192.168.1.201', dataPort=2368, rpm:int=600, retrunMode='dual')
 
 # launch the device
