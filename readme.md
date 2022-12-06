@@ -30,7 +30,7 @@ $ python -c "import velodyne_decoder as vd;print(vd.Config.SUPPORTED_MODELS)"
 
 ### Independently
 
-Take `VLP-16` for example, the following command runs a 60-second demo, and write the point cloud to `out/<date>/<model>_<rpm><returnMode>_<UTCtimestamp>.pcap`, together with cooresponding `.log` file.
+Take `VLP-16` for example, the following command runs a 60-second demo, and write the point cloud to `out/<date>/<model>_<rpm><returnMode>_<UTCtimestamp>.pcap`, together with cooresponding `.log` file. The `.pcap` file can be visualized directly by [VeloView](https://www.paraview.org/VeloView/).
 
 ```shell
 python vldreader.py --model VLP-16 --ip-lidar <ip_addr_lidar> --dataport <data_port_lidar> --rpm <rpm>
