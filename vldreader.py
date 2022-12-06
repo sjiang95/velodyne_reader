@@ -19,6 +19,7 @@ import threading
 from tqdm import tqdm
 from scapy.all import Ether, IP, UDP
 from scapy.utils import PcapWriter
+from prettytable import PrettyTable
 
 # velodyne
 # https://github.com/valgur/velodyne_decoder
@@ -91,6 +92,8 @@ class ld:
         # workflow flag
         self.stream2pcapFlag=False # use this flag to break loop in func stream2pcap()
         
+        self.deviceSettings()
+        
     def buildlogger(self):
         import logging
         logger = logging.getLogger()
@@ -137,6 +140,22 @@ class ld:
                 retriesLeft -= 1
         return False
     
+    def deviceSettings(self):
+        """
+        Summarize lidar settings.
+        """
+        tb=PrettyTable(field_names=["key","value"])
+        tb.add_rows(
+            [
+                ["model",f"{self.model}"],
+                ["lidar's address",f"{self.lidarip}"],
+                ["data port",f"{self.dataPort}"],
+                ["rpm",f"{self.rpm}"],
+                ["returnMode",f"{self.returnMode}"],
+            ]
+        )
+        self.logger.info(f"Initialize lidar device with the following settings\n{tb}")
+        
     def isAlive(self):
         """
         Return True if `laser is On` or `rpm!=0`.

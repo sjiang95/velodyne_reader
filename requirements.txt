@@ -1,4 +1,5 @@
-pycurl==7.45.1
-scapy==2.4.5
-tqdm==4.64.1
-urllib3==1.26.12
+pycurl
+scapy
+tqdm
+urllib3
+prettytable
