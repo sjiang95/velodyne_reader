@@ -3,3 +3,5 @@
 # output
 out
 log
+
+*__pycache__*
