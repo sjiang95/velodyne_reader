@@ -54,6 +54,7 @@ class ld:
                  returnMode:str='dual',
                  localhost:str='',
                  as_pcl_structs:bool=False,
+                 outputRoot:str='',
                  filePref:str=None) -> None:
         assert model in supportModels,f"Unsupported model {model}, please choose from {supportModels}."
         # utils
@@ -72,6 +73,8 @@ class ld:
         self.decoder = vd.StreamDecoder(self.config)
         self.utc_time=datetime.now(timezone.utc)
         self.utcDate=self.utc_time.strftime('%Y%m%d')
+        self.utcHMS=self.utc_time.strftime('%H%M%S')
+        self.outputRoot=outputRoot
         self.filePref=filePref if filePref is not None else self.model+'_'+str(self.rpm)+'rpm'+self.returnMode.capitalize()+'_'+self.utc_time.strftime('%Y%m%dT%H%M%S.%f')
         
         # logger
@@ -105,7 +108,7 @@ class ld:
         terminalHandler.setFormatter(formatter)
         terminalHandler.setLevel('INFO')
         logger.addHandler(terminalHandler)
-        outdir=os.path.join("lidarlog",self.utcDate)
+        outdir=os.path.join(self.outputRoot,self.utcDate,self.utcHMS,"lidarlog")
         if not os.path.exists(outdir): os.makedirs(outdir)
         fileHandler = logging.FileHandler(os.path.join(outdir,self.filePref+'.log')) # handler write to .log file
         fileHandler.setFormatter(formatter)
@@ -225,7 +228,7 @@ class ld:
     def stream2pcap(self, baseThread:threading.Thread=None, filename:str=None):
         assert baseThread is not None, f"Must specify baseThread (threading.Thread class) on which `q2pcap` is relied."
         if filename is None: 
-            outdir=os.path.join("lidarout",self.utcDate)
+            outdir=os.path.join(self.outputRoot,self.utcDate,self.utcHMS,"lidarout")
             if not os.path.exists(outdir): os.makedirs(outdir)
             filename =os.path.join(outdir,self.filePref+'.pcap')
         etherIPHead=(
@@ -262,10 +265,10 @@ class ld:
                 
         
 def main(args):
-    myld=ld(args.model,args.ip_lidar,args.dataport,args.rpm,args.returnmode)
+    myld=ld(args.model,args.ip_lidar,args.dataport,args.rpm,args.returnmode,outputRoot=args.outdir)
     utcDate=datetime.now(timezone.utc).strftime('%Y%m%d')
     utcHMS=datetime.now(timezone.utc).strftime('%H%M%S')
-    outdir=os.path.join(args.outdir,utcDate,utcHMS)
+    outdir=os.path.join(args.outdir,utcDate,utcHMS,"lidarpcap")
     if not os.path.exists(outdir): os.makedirs(outdir)
     myld.logger.info(f"Outputs will be written to {outdir}.")
     myld.launch()
