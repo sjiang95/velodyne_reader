@@ -303,7 +303,7 @@ def main(args):
             
         for oneThread in threadList:
             oneThread.join()
-            myld.logger.info(f"Thread {oneThread.name} stopped.")
+            myld.logger.info(f"Thread {oneThread.name} exited.")
     
     if myld.isAlive(): myld.stop()
                 
