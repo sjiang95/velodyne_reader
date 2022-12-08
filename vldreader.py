@@ -264,7 +264,8 @@ class ld:
 def main(args):
     myld=ld(args.model,args.ip_lidar,args.dataport,args.rpm,args.returnmode)
     utcDate=datetime.now(timezone.utc).strftime('%Y%m%d')
-    outdir=os.path.join(args.outdir,utcDate)
+    utcHMS=datetime.now(timezone.utc).strftime('%H%M%S')
+    outdir=os.path.join(args.outdir,utcDate,utcHMS)
     if not os.path.exists(outdir): os.makedirs(outdir)
     myld.logger.info(f"Outputs will be written to {outdir}.")
     myld.launch()
