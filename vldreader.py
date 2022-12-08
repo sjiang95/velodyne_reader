@@ -105,13 +105,13 @@ class ld:
         terminalHandler.setFormatter(formatter)
         terminalHandler.setLevel('INFO')
         logger.addHandler(terminalHandler)
-        outdir=os.path.join("log",self.utcDate)
+        outdir=os.path.join("lidarlog",self.utcDate)
         if not os.path.exists(outdir): os.makedirs(outdir)
         fileHandler = logging.FileHandler(os.path.join(outdir,self.filePref+'.log')) # handler write to .log file
         fileHandler.setFormatter(formatter)
         logger.addHandler(fileHandler)
         
-        logger.info(f"Logs will be written to {outdir}.")
+        logger.info(f"Lidar logs will be written to {outdir}.")
         
         return logger
 
@@ -219,13 +219,13 @@ class ld:
     def _recvfrom(self):
         while not self.stream2pcapFlag:
             self.qStream.put(item=(time.time(), *self.socket.recvfrom(vd.PACKET_SIZE * 2))) # push tuple (timeStamp, data, addr) to the queue
-        self.progressBar=self.initProgressBar(maxiters=self.qStream.qsize(),desc="Writing to disk")
+        self.progressBar=self.initProgressBar(maxiters=self.qStream.qsize(),desc="Writing pcaps")
         self.stop()
             
     def stream2pcap(self, baseThread:threading.Thread=None, filename:str=None):
         assert baseThread is not None, f"Must specify baseThread (threading.Thread class) on which `q2pcap` is relied."
         if filename is None: 
-            outdir=os.path.join("out",self.utcDate)
+            outdir=os.path.join("lidarout",self.utcDate)
             if not os.path.exists(outdir): os.makedirs(outdir)
             filename =os.path.join(outdir,self.filePref+'.pcap')
         etherIPHead=(
