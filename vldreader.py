@@ -14,6 +14,7 @@ import socket
 import argparse
 from datetime import datetime, timezone
 import os
+import logging
 import queue
 import threading
 from tqdm import tqdm
@@ -55,7 +56,8 @@ class ld:
                  localhost:str='',
                  as_pcl_structs:bool=False,
                  outputRoot:str='',
-                 filePref:str=None) -> None:
+                 filePref:str=None,
+                 logger:logging.Logger=None) -> None:
         assert model in supportModels,f"Unsupported model {model}, please choose from {supportModels}."
         # utils
         self.progressBar=None
@@ -78,7 +80,7 @@ class ld:
         self.filePref=filePref if filePref is not None else self.model+'_'+str(self.rpm)+'rpm'+self.returnMode.capitalize()+'_'+self.utc_time.strftime('%Y%m%dT%H%M%S.%f')
         
         # logger
-        self.logger=self.buildlogger()
+        self.logger=self.buildlogger() if logger is None else logger
         
         # communication
         self.localhost=localhost
@@ -98,7 +100,6 @@ class ld:
         self.deviceSettings()
         
     def buildlogger(self):
-        import logging
         logger = logging.getLogger()
         logger.setLevel('DEBUG')
         BASIC_FORMAT = "[vld_reader] %(asctime)s.%(msecs)03d:%(levelname)s:%(message)s"
