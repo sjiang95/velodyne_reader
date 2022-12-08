@@ -98,7 +98,7 @@ class ld:
         import logging
         logger = logging.getLogger()
         logger.setLevel('DEBUG')
-        BASIC_FORMAT = "%(asctime)s.%(msecs)03d:%(levelname)s:%(message)s"
+        BASIC_FORMAT = "[vld_reader] %(asctime)s.%(msecs)03d:%(levelname)s:%(message)s"
         DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
         formatter = logging.Formatter(BASIC_FORMAT, DATE_FORMAT)
         terminalHandler = logging.StreamHandler() # handler outputs to console
