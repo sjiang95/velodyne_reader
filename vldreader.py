@@ -77,7 +77,7 @@ class ld:
         self.utcDate=self.utc_time.strftime('%Y%m%d')
         self.utcHMS=self.utc_time.strftime('%H%M%S')
         self.outputRoot=outputRoot
-        self.filePref=filePref if filePref is not None else self.model+'_'+str(self.rpm)+'rpm'+self.returnMode.capitalize()+'_'+self.utc_time.strftime('%Y%m%dT%H%M%S.%f')
+        self.filePref=filePref if filePref is not None else self.model+'_'+f"{self.rpm:04d}"+'rpm'+self.returnMode.capitalize()+'_'+self.utc_time.strftime('%Y%m%dT%H%M%S.%f')
         
         # logger
         self.logger=self.buildlogger() if logger is None else logger
