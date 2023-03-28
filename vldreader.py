@@ -25,8 +25,15 @@ from prettytable import PrettyTable
 # velodyne
 # https://github.com/valgur/velodyne_decoder
 import velodyne_decoder as vd
+try:
+    print(f"Use velodyne_decoder {vd.__version__}")
+except AttributeError:
+    raise AttributeError("'velodyne_decoder'<3.0.0 has problem handling Dual return mode (see https://github.com/valgur/velodyne_decoder/issues/5). So this script support only 'velodyne_decoder'>=3.0.0.")
+# velodyne
+# https://github.com/valgur/velodyne_decoder
+supportModels = list(vd.Model.__entries)
+print(f"Support models: {supportModels}")
 from velodyne_decoder_pylib import *
-supportModels = vd.Config.SUPPORTED_MODELS
 
 
 class ld:
@@ -75,7 +82,7 @@ class ld:
         assert returnMode in [
             'strongest', 'last', 'dual'], f"returnMode must be one of ['strongest','last','dual'], but got {returnMode}"
         self.returnMode = returnMode.capitalize()
-        self.config = vd.Config(model=self.model, rpm=self.rpm)
+        self.config = vd.Config()
         self.decoder = vd.StreamDecoder(self.config)
         self.utc_time = datetime.now(timezone.utc)
         self.utcDate = self.utc_time.strftime('%Y%m%d')
