@@ -7,14 +7,20 @@ This repo provides python scripts to read data stream directly from velodyne lid
 ```shell
 conda create -n lidar --file requirements.txt -c conda-forge
 conda activate lidar
-pip install velodyne_decoder
+pip install 'velodyne_decoder>=3.0.0'
 ```
 
 Or, if you prefer `pip`
 
 ```shell
 pip install -r requirements.txt
-pip install velodyne_decoder
+pip install 'velodyne_decoder>=3.0.0'
+```
+
+For [velodyne_decoder](https://github.com/valgur/velodyne_decoder#configuration), please make sure you install `>=3.0.0`. If `velodyne_decoder>=3.0.0` is not available via pip, install from source at `develop` branch.
+
+```shell
+pip install git+https://github.com/valgur/velodyne_decoder.git@develop
 ```
 
 ## Applicability
@@ -22,8 +28,8 @@ pip install velodyne_decoder
 Generally, the supported model is decided by [valgur/velodyne_decoder](https://github.com/valgur/velodyne_decoder#configuration). You can get the supported device list by
 
 ```shell
-$ python -c "import velodyne_decoder as vd;print(vd.Config.SUPPORTED_MODELS)"
-['HDL-32E', 'HDL-64E', 'HDL-64E_S2', 'HDL-64E_S3', 'VLP-16', 'VLP-32C', 'Alpha Prime']
+$ python -c "import velodyne_decoder as vd;print(list(vd.Model.__entries))"
+['HDL64E_S1', 'HDL64E_S2', 'HDL64E_S3', 'HDL32E', 'VLP32A', 'VLP32B', 'VLP32C', 'VLP16', 'PuckLite', 'PuckHiRes', 'VLS128', 'AlphaPrime']
 ```
 
 ## Usage
