@@ -360,7 +360,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="read data directly from velodyne lidar")
-    parser.add_argument('--model', default='VLP-16', type=str, choices=supportModels,
+    parser.add_argument('--model', default='VLP16', type=str, choices=supportModels,
                         metavar="MODEL", help="Model of the velodyne lidar you use.")
     parser.add_argument('--ip-lidar', default='192.168.1.201', type=str,
                         metavar="Lidar_IP", help="IP addr of velodyne lidar. Default:'192.168.1.201'.")
